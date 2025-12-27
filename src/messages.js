@@ -9,7 +9,7 @@ module.exports = {
     `🌸 桜ちゃん看了一下~\n【${roleName}】目前還沒有成員喔。`,
 
   successHeader: roleName =>
-    `📋 桜ちゃん幫你整理好囉！\n【${roleName}】成員如下：`,
+    `🌸 桜ちゃん幫你整理好囉！\n【${roleName}】成員如下：`,
 
   tooManyMembers: () =>
     '🌸 桜ちゃん發現成員有點多，\n這次先幫你準備成檔案會比較清楚喔~'
