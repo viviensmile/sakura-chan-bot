@@ -38,24 +38,25 @@ sakura-chan-bot/
 ---
 
 ## 🔹 Installation
+
 1. Clone this repository:
 ```bash
 git clone https://github.com/yourusername/sakura-chan-bot.git
 cd sakura-chan-bot
 ```
 
-1. Install dependencies:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-1. Create a `.env` file in the root:
+3. Create a `.env` file in the root:
 ```env
 DISCORD_TOKEN=YOUR_BOT_TOKEN_HERE
 APPLICATION_ID=YOUR_APPLICATION_ID
 ```
 
-1. Start the bot:
+4. Start the bot:
 ```bash
 npm start
 ```
@@ -84,6 +85,7 @@ npm start
 ---
 
 ## 🔹 Commands Deployment & Deletion
+
 1. Deploy Global Commands
 ```bash
 npm run deploy-commands
@@ -92,7 +94,7 @@ npm run deploy-commands
 - Registers all global slash commands defined in `deploy-commands.js`.
 - ⚠️ Global commands may take up to **1 hour** to appear for all server members.
 
-1. Delete Old Global Commands (Interactive)
+2. Delete Old Global Commands (Interactive)
 ```
 npm run delete-commands
 ```
