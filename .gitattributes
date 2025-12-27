@@ -1,0 +1,2 @@
+# Force JSON files to use LF
+*.json text eol=lf
