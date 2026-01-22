@@ -1,37 +1,74 @@
 require('dotenv').config();
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes } = require('discord.js');
 
-// Load information from .env
-const APPLICATION_ID = process.env.APPLICATION_ID;
-const TOKEN = process.env.DISCORD_TOKEN;
+// Read credentials from .env
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.APPLICATION_ID;
 
-// Define commands
+// Slash command definitions
 const commands = [
-  new SlashCommandBuilder()
-    .setName('rolelist')
-    .setDescription('List all members of a role')
-    .addRoleOption(option =>
-      option.setName('role')
-            .setDescription('The role to list members of')
-            .setRequired(true)
-    )
-    .toJSON()
+  {
+    name: 'role-list',
+    description: 'List all members of a specific role',
+    options: [
+      {
+        name: 'role',
+        description: 'Select a role',
+        type: 8, // ROLE
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'bot-version',
+    description: 'Show Sakura-chan bot version'
+  },
+  {
+    name: 'clean-role',
+    description: 'Administrator only: remove all members from a role',
+    options: [
+      {
+        name: 'role',
+        description: 'Select a role to clean',
+        type: 8,
+        required: true
+      }
+    ]
+  }
 ];
 
-// Create REST object
-const rest = new REST({ version: '10' }).setToken(TOKEN);
+// Create REST client
+const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log('🌸 Started refreshing global application (slash) commands.');
+    console.log('🌸 Fetching existing global commands...');
 
-    await rest.put(
-      Routes.applicationCommands(APPLICATION_ID),
-      { body: commands },
+    // Get currently registered global commands
+    const existingCommands = await rest.get(
+      Routes.applicationCommands(clientId)
     );
 
-    console.log('🌸 Successfully reloaded global application (slash) commands.');
+    // Filter commands that are not yet registered
+    const newCommands = commands.filter(cmd =>
+      !existingCommands.some(c => c.name === cmd.name)
+    );
+
+    if (newCommands.length === 0) {
+      console.log('🌸 All commands already registered, nothing to deploy.');
+      return;
+    }
+
+    console.log(`🌸 Registering ${newCommands.length} new command(s)...`);
+
+    // Merge existing commands with new ones
+    await rest.put(
+      Routes.applicationCommands(clientId),
+      { body: [...existingCommands, ...newCommands] }
+    );
+
+    console.log('🌸 Command deployment completed!');
   } catch (error) {
-    console.error(error);
+    console.error('❌ Failed to deploy commands:', error);
   }
 })();
