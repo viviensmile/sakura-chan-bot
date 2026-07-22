@@ -34,6 +34,24 @@ const commands = [
         required: true
       }
     ]
+  },
+  {
+    name: 'create-raid-thread',
+    description: 'Create this week\'s raid expedition thread',
+    options: [
+      {
+        name: 'role-1',
+        description: 'First role to mention',
+        type: 8,
+        required: true
+      },
+      ...[2, 3, 4, 5].map(number => ({
+        name: `role-${number}`,
+        description: `Additional role ${number} to mention`,
+        type: 8,
+        required: false
+      }))
+    ]
   }
 ];
 
@@ -42,29 +60,12 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log('🌸 Fetching existing global commands...');
+    console.log(`🌸 Deploying ${commands.length} command(s)...`);
 
-    // Get currently registered global commands
-    const existingCommands = await rest.get(
-      Routes.applicationCommands(clientId)
-    );
-
-    // Filter commands that are not yet registered
-    const newCommands = commands.filter(cmd =>
-      !existingCommands.some(c => c.name === cmd.name)
-    );
-
-    if (newCommands.length === 0) {
-      console.log('🌸 All commands already registered, nothing to deploy.');
-      return;
-    }
-
-    console.log(`🌸 Registering ${newCommands.length} new command(s)...`);
-
-    // Merge existing commands with new ones
+    // Replace global commands so changed descriptions and options are updated too
     await rest.put(
       Routes.applicationCommands(clientId),
-      { body: [...existingCommands, ...newCommands] }
+      { body: commands }
     );
 
     console.log('🌸 Command deployment completed!');

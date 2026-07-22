@@ -2,8 +2,10 @@ require('dotenv').config();
 
 const {
   Client,
+  ChannelType,
   GatewayIntentBits,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ThreadAutoArchiveDuration
 } = require('discord.js');
 
 const msg = require('./messages');
@@ -20,6 +22,42 @@ const client = new Client({
 const getNowTimeUTC8 = () => {
   const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
   return now.toISOString().replace('T', ' ').substring(0, 19);
+};
+
+// Get the raid period containing today in UTC+8.
+// 2026/7/23~2026/7/27 is a shorter transition period.
+// Starting 2026/7/28, raids reset every Tuesday and run through Monday.
+const getRaidPeriodUTC8 = () => {
+  const utc8Now = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const createUTC8Date = (year, month, day) =>
+    new Date(Date.UTC(year, month - 1, day));
+
+  const today = createUTC8Date(
+    utc8Now.getUTCFullYear(),
+    utc8Now.getUTCMonth() + 1,
+    utc8Now.getUTCDate()
+  );
+
+  const transitionStart = createUTC8Date(2026, 7, 23);
+  const weeklyTuesdayStart = createUTC8Date(2026, 7, 28);
+
+  let start;
+  let end;
+
+  if (today >= transitionStart && today < weeklyTuesdayStart) {
+    start = transitionStart;
+    end = createUTC8Date(2026, 7, 27);
+  } else {
+    const daysSinceTuesday = (today.getUTCDay() - 2 + 7) % 7;
+    start = new Date(today);
+    start.setUTCDate(start.getUTCDate() - daysSinceTuesday);
+
+    end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+  }
+
+  const format = date => `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
+  return `${format(start)}~${format(end)}`;
 };
 
 // Fired once when the bot is ready
@@ -93,6 +131,84 @@ client.on('interactionCreate', async interaction => {
       content: msg.versionInfo(),
       ephemeral: false
     });
+  }
+
+  // ======================
+  // /create-raid-thread
+  // ======================
+  if (interaction.commandName === 'create-raid-thread') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageThreads)) {
+      return interaction.reply({
+        content: msg.noPermission(),
+        ephemeral: true
+      });
+    }
+
+    const channel = interaction.channel;
+    if (!channel || channel.type !== ChannelType.GuildText) {
+      return interaction.reply({
+        content: '🌸 這個指令只能在伺服器的文字頻道使用唷～',
+        ephemeral: true
+      });
+    }
+
+    const botPermissions = channel.permissionsFor(interaction.guild.members.me);
+    const requiredPermissions = [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.CreatePublicThreads,
+      PermissionFlagsBits.SendMessagesInThreads
+    ];
+
+    if (!botPermissions || !botPermissions.has(requiredPermissions)) {
+      return interaction.reply({
+        content: '🌸 桜ちゃん缺少查看頻道、建立公開討論串或在討論串發言的權限唷～',
+        ephemeral: true
+      });
+    }
+
+    const roles = [];
+    for (let number = 1; number <= 5; number += 1) {
+      const role = interaction.options.getRole(`role-${number}`);
+      if (role && !roles.some(selectedRole => selectedRole.id === role.id)) {
+        roles.push(role);
+      }
+    }
+
+    if (roles.some(role => role.id === interaction.guild.id)) {
+      return interaction.reply({
+        content: '🌸 請選擇特定身分組，不要選擇 @everyone 唷～',
+        ephemeral: true
+      });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const threadName = `⚔️ ${getRaidPeriodUTC8()} 突襲遠征隊`;
+      const thread = await channel.threads.create({
+        name: threadName,
+        autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+        reason: `Created by ${interaction.user.tag} for raid scheduling`
+      });
+
+      await thread.send({
+        content: `${msg.raidThreadMessage()}\n${roles.map(role => `- ${role}`).join('\n')}\n\n${msg.raidRoleReminder()}`,
+        allowedMentions: {
+          roles: roles.map(role => role.id),
+          users: [],
+          repliedUser: false
+        }
+      });
+
+      await interaction.editReply({
+        content: msg.raidThreadCreated(thread.toString())
+      });
+    } catch (error) {
+      console.error('Failed to create raid thread:', error);
+      await interaction.editReply({
+        content: '🌸 建立突襲遠征隊討論串時發生問題，請確認頻道與身分組權限後再試一次～'
+      });
+    }
   }
   
   // ======================
